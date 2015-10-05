@@ -57,13 +57,13 @@ class Tx_Contexts_Service_Tcemain
             && isset($incomingFieldArray['default_settings'])
             && is_array($incomingFieldArray['default_settings'])
         ) {
-            $this->currentSettings = $incomingFieldArray['default_settings'];
+            $this->currentSettings[$table][$id] = $incomingFieldArray['default_settings'];
             unset($incomingFieldArray['default_settings']);
             return;
         }
 
         if (isset($incomingFieldArray[Tx_Contexts_Api_Configuration::RECORD_SETTINGS_COLUMN])) {
-            $this->currentSettings = $incomingFieldArray[Tx_Contexts_Api_Configuration::RECORD_SETTINGS_COLUMN];
+            $this->currentSettings[$table][$id] = $incomingFieldArray[Tx_Contexts_Api_Configuration::RECORD_SETTINGS_COLUMN];
             unset($incomingFieldArray[Tx_Contexts_Api_Configuration::RECORD_SETTINGS_COLUMN]);
         }
     }
@@ -81,18 +81,20 @@ class Tx_Contexts_Service_Tcemain
     public function processDatamap_afterDatabaseOperations(
         $status, $table, $id, $fieldArray, $reference
     ) {
-        if (is_array($this->currentSettings)) {
+        if (is_array($this->currentSettings[$table][$id])) {
+            $originalId = $id;
+            $settingsForRecord = $this->currentSettings[$table][$id];
             if (!is_numeric($id)) {
                 $id = $reference->substNEWwithIDs[$id];
             }
             if ($table == 'tx_contexts_contexts') {
-                $this->saveDefaultSettings($id, $this->currentSettings);
+                $this->saveDefaultSettings($id, $settingsForRecord);
             } else {
-                $this->saveRecordSettings($table, $id, $this->currentSettings);
-                $this->saveFlatSettings($table, $id, $this->currentSettings);
+                $this->saveRecordSettings($table, $id, $settingsForRecord);
+                $this->saveFlatSettings($table, $id, $settingsForRecord);
             }
 
-            unset($this->currentSettings);
+            unset($this->currentSettings[$table][$originalId]);
         }
     }
 
