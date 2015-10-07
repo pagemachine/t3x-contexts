@@ -247,6 +247,8 @@ class Tx_Contexts_Api_Configuration
             $recordSettingsConf = array(
                 "exclude" => 1,
                 "label" => 'LLL:' . self::LANG_FILE. ':tabname',
+                //Uncomment this line to hide context settings completely in workspaces. To be removed when custom rendering has proven stability
+                //"displayCond" => "VERSION:IS:false",
                 "config" => array (
                     "type" => "user",
                     "size" => "30",

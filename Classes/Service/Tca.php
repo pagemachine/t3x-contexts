@@ -1,4 +1,6 @@
 <?php
+
+use TYPO3\CMS\Backend\Utility\BackendUtility;
 /***************************************************************
 *  Copyright notice
 *
@@ -54,8 +56,22 @@ class Tx_Contexts_Service_Tca
         $namePre = str_replace('[' . $params['field'] . '_', '[' . $params['field'] . '][', $params['itemFormElName']);
 
         $settings = $params['fieldConf']['config']['settings'];
+        $content = '';
 
-        $content = '<table class="tx_contexts_table_settings typo3-dblist" style="width: auto; min-width:50%">'
+        //Check for the current workspace. If it's not LIVE, throw info message and disable context editing further down
+        $currentWorkspace = $GLOBALS['BE_USER']->workspace;
+        if ($currentWorkspace != 0) {
+            $message = \TYPO3\CMS\Core\Utility\GeneralUtility::makeInstance('TYPO3\\CMS\\Core\\Messaging\\FlashMessage',
+                 'Contexts are read-only in this workspace. Switch to LIVE version to change them.',
+                 '',
+                 \TYPO3\CMS\Core\Messaging\FlashMessage::INFO,
+                 FALSE
+            );
+            $content .= $message->render();
+        }
+
+
+        $content .= '<table class="tx_contexts_table_settings typo3-dblist" style="width: auto; min-width:50%">'
             . '<tbody>'
             . '<tr class="t3-row-header">'
             . '<td></td>'
@@ -68,7 +84,13 @@ class Tx_Contexts_Service_Tca
         $content .= '</tr>';
 
         $uid = (int) $params['row']['uid'];
+        $row = $params['row'];
 
+        //Is this a Workspace Overlay? If so, load original record for plain info view
+        if ($currentWorkspace != 0 && $params['row']['t3ver_oid'] != 0) {
+            $uid = (int) $params['row']['t3ver_oid'];
+            $row = BackendUtility::getLiveVersionOfRecord($table, $params['row']['uid']);
+        }
         $visibleContexts = 0;
         foreach ($contexts as $context) {
             if ($context->getDisabled() || $context->getHideInBackend()) {
@@ -80,14 +102,27 @@ class Tx_Contexts_Service_Tca
             $contSettings = '';
             $bHasSetting = false;
             foreach ($settings as $settingName => $config) {
-                $setting = $uid ? $context->getSetting($table, $settingName, $uid, $params['row']) : null;
+                $setting = $uid ? $context->getSetting($table, $settingName, $uid, $row) : null;
                 $bHasSetting = $bHasSetting || (bool) $setting;
-                $contSettings .= '<td class="tx_contexts_setting">'
-                    . '<select name="' . $namePre . '[' . $context->getUid() . '][' . $settingName . ']">'
-                    . '<option value="">n/a</option>'
-                    . '<option value="1"' . ($setting && $setting->getEnabled() ? ' selected="selected"' : '') . '>Yes</option>'
-                    . '<option value="0"' . ($setting && !$setting->getEnabled() ? ' selected="selected"' : '') . '>No</option>'
-                    . '</select></td>';
+                if ($currentWorkspace != 0) {
+                    $contSettings .= '<td class="tx_contexts_setting">';
+                    if ($setting && $setting->getEnabled()) {
+                        $contSettings .= '<span class="context-active">Yes</span>';
+                    } else if ($setting && !$setting->getEnabled()) {
+                        $contSettings .= '<span class="context-active">No</span>';
+                    } else {
+                        $contSettings .= 'n/a';
+                    }
+                    $contSettings .= '</td>';
+                } else {
+                    $contSettings .= '<td class="tx_contexts_setting">'
+                        . '<select name="' . $namePre . '[' . $context->getUid() . '][' . $settingName . ']">'
+                        . '<option value="">n/a</option>'
+                        . '<option value="1"' . ($setting && $setting->getEnabled() ? ' selected="selected"' : '') . '>Yes</option>'
+                        . '<option value="0"' . ($setting && !$setting->getEnabled() ? ' selected="selected"' : '') . '>No</option>'
+                        . '</select></td>';
+                }
+
             }
 
             list($icon, $title) = $this->getRecordPreview($context, $uid);

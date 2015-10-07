@@ -184,8 +184,9 @@ class Tx_Contexts_Service_Tcemain
             foreach ($values as $colname => &$val) {
                 $val = implode(',', $val);
             }
+            //Save new values into main record and all workspace versions of it
             Tx_Contexts_Api_Configuration::getDb()->exec_UPDATEquery(
-                $table, 'uid=' . $uid, $values
+                $table, 'uid=' . $uid . ' OR ' . 't3ver_oid = ' . $uid, $values
             );
         }
     }
